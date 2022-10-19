@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>贪吃蛇 · VIP 无限畅吃版</title>
+</head>
+<body>
+    <canvas id="canvas" width="500" height="500"></canvas>
+</body>
+</html>
+<script>
+    const $canvas = document.getElementById('canvas'), ctx = $canvas.getContext('2d'), config = {
+        x: 100, // x 轴方向格子数量
+        y: 100, // y 轴方向格子数量
+        length: 20, // 初始化长度
+        direction: 'R', // 初始化移动方向 'L' | 'R' | 'T' | 'B',
+        originX: 10, // 初始蛇头位置 x
+        originY: 10, // 初始蛇头位置 y
+        speed: 0.1, // 移动速度(s) / 移动一格
+        bgColor: '#000', // 画布背景色
+    };
+    const sideX = $canvas.width / config.x, sideY = $canvas.height / config.y;
+    let data = {
+        status: 'ING', // 'ING' -> 进行中, 'FAIL' -> 失败结束
+        direction: config.direction, // 移动方向，初始为默认方向
+        headX: config.originX,
+        headY: config.originY,
+        tailX: null,
+        tailY: null,
+        pos: [], // 所有节点位置
+        food: [], // 食物位置
+        opacity: 1, // 透明度为 1，重新设置食物位置
+    }, timer = null;
+
+    if (ctx) {
+        init();
+        addTimer();
+        addEvents();
+    }
+
+    // 游戏初始化
+    function init() {
+        // 绘制背景
+        drawBackground();
+        // 绘制蛇头
+        drawHead(config.originX, config.originY);
+        // 绘制身体
+        const funcMap = {
+            'L': (i) => {
+                drawBodyEle(config.originX + sideX * (i + 1), config.originY);
+            },
+            'R': (i) => {
+                drawBodyEle(config.originX - sideX * (i + 1), config.originY);
+            },
+            'T': (i) => {
+                drawBodyEle(config.originX, config.originY + sideY * (i + 1));
+            },
+            'B': (i) => {
+                drawBodyEle(config.originX, config.originY - sideY * (i + 1));
+            }
+        }
+
+        // 注意循环次数要减去头的长度
+        for (let i=0; i<config.length-1; i++) {
+            funcMap[config.direction](i);
+        }
+
+        // 初始化位置坐标
+        caclPos();
+
+        // 初始化食物
+        addFood();
+    }
+
+    /**
+     * @desc 计算初始尾巴的坐标
+     */
+    function caclPos() {
+        const map = {
+            'L': (i) => [config.originX + i * sideX, config.originY],
+            'R': (i) => [config.originX - i * sideX, config.originY],
+            'T': (i) => [config.originX, config.originY + i * sideY],
+            'B': (i) => [config.originX, config.originY - i * sideY],
+        };
+
+        for (let i=0; i < config.length; i++) {
+            data.pos.push(map[config.direction](i));
+        }
+    }
+
+    /**
+     * @desc 添加定时器
+     */
+    function addTimer() {
+        clearInterval(timer);
+        timer = setInterval(() => {
+            if (data.status === 'ING') {
+                move();
+            } else if (data.status === 'FAIL') {
+                clearInterval(timer);
+            }
+        }, config.speed * 1000);
+    }
+
+    /**
+     * @desc 绑定事件
+     */
+    function addEvents() {
+        window.addEventListener('keydown', (e) => {
+            const map = {
+                37: 'L',
+                38: 'T',
+                39: 'R',
+                40: 'B'
+            };
+            data.direction = map[e.keyCode] || data.direction || config.direction;
+        });
+    }
+
+    function addFood() {
+        const x = Math.ceil(Math.random() * config.x - 1) * sideX;
+        const y = Math.ceil(Math.random() * config.y - 1) * sideY;
+        let find = false;
+
+        for (let i=0, len=data.pos.length; i<len; i++) {
+            const posx = data.pos[i][0];
+            const posy = data.pos[i][1];
+
+            if (posx === x && posy === y) {
+                addFood();
+                return;
+            }
+        }
+
+        ctx.fillStyle = 'chartreuse';
+        ctx.fillRect(x, y, sideX, sideY);
+
+        data.food = [x, y];
+    }
+
+    /**
+     * @desc 绘制背景
+     */
+    function drawBackground() {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, $canvas.width, $canvas.height);
+    }
+
+    /**
+     * @desc 绘制蛇头
+     */
+    function drawHead(x, y) {
+        ctx.fillStyle = 'pink';
+        ctx.fillRect(x, y, sideX, sideY);
+    }
+
+    /**
+     * @desc 绘制身体单个元素：蛇身体由一个个元素构成
+     */
+    function drawBodyEle(x, y) {
+        ctx.beginPath();
+        ctx.fillStyle = 'gold';
+        ctx.fillRect(x, y, sideX, sideY);
+    }
+
+    /**
+     * @desc 移动
+     */
+    function move() {
+        ctx.fillStyle = `rgba(0, 0, 0, 0.05)`;
+        data.opacity -= 0.05;
+        ctx.fillRect(0, 0, $canvas.width, $canvas.height);
+        if (data.opacity <= 0) {
+            addFood();
+        }
+        const len = data.pos.length;
+        const nextPosMap = {
+            'L': [data.pos[0][0] - sideX, data.pos[0][1]],
+            'R': [data.pos[0][0] + sideX, data.pos[0][1]],
+            'T': [data.pos[0][0], data.pos[0][1] - sideY],
+            'B': [data.pos[0][0], data.pos[0][1] + sideY],
+        };
+        const funcMap = {
+            'L': () => {
+                drawHead(data.pos[0][0] - sideX, data.pos[0][1]);
+                data.pos.unshift([data.pos[0][0] - sideX, data.pos[0][1]]);
+
+                if (data.pos[0][0] - sideX < -sideX) {
+                    data.status = 'FAIL';
+                }
+            },
+            'R': () => {
+                drawHead(data.pos[0][0] + sideX, data.pos[0][1]);
+                data.pos.unshift([data.pos[0][0] + sideX, data.pos[0][1]]);
+
+                if (data.pos[0][0] + sideX >= $canvas.width + sideX) {
+                    data.status = 'FAIL';
+                }
+            },
+            'T': () => {
+                drawHead(data.pos[0][0], data.pos[0][1] - sideY);
+                data.pos.unshift([data.pos[0][0], data.pos[0][1] - sideY]);
+
+                if (data.pos[0][1] - sideX < -sideY) {
+                    data.status = 'FAIL';
+                }
+            },
+            'B': () => {
+                drawHead(data.pos[0][0], data.pos[0][1] + sideY);
+                data.pos.unshift([data.pos[0][0], data.pos[0][1] + sideY]);
+
+                if (data.pos[0][1] + sideX >= $canvas.height + sideY) {
+                    data.status = 'FAIL';
+                }
+            }
+        };
+        // 新增节点到原头部位置
+        drawBodyEle(data.pos[0][0], data.pos[0][1]);
+
+        const imgData = ctx.getImageData(nextPosMap[data.direction][0], nextPosMap[data.direction][1], 1, 1).data;
+        // 如果和食物碰撞：不删除尾巴位置
+        if (!((imgData[0] === 0) && (imgData[1] === 0) && (imgData[2] === 0) && (imgData[3] === 255))) {
+            // 清除原来的食物
+            ctx.fillStyle = config.bgColor;
+            ctx.fillRect(nextPosMap[data.direction][0], nextPosMap[data.direction][1], sideX, sideY);
+            // 新添加食物
+            addFood();
+        } else {
+            // 清除尾巴节点
+            ctx.fillStyle = config.bgColor;
+            ctx.fillRect(data.pos[len-1][0], data.pos[len-1][1], sideX, sideY);
+            // 删除尾巴位置
+            data.pos.pop();
+        }
+        
+        // 不同方向的移动
+        funcMap[data.direction]();
+    }
+</script>
+<style>
+    canvas {
+        background-color:antiquewhite;
+        width: 250px;
+        height: 250px;
+    }
+</style>
